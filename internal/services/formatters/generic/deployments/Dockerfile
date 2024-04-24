@@ -25,6 +25,19 @@ RUN apk add build-base
 
 RUN pip install semgrep==v0.85.0
 
+# Create Folder for Rules semgrep
+# START
+RUN mkdir /opt/rules-semgrep
+
+RUN VERSION_RULES_SEMGREP="v1.0-test"
+
+RUN curl -o /tmp/rules-semgrep.zip -LO "https://github.com/jasayosep/rules-semgrep/archive/refs/tags/$VERSION_RULES_SEMGREP.zip"
+
+RUN unzip /tmp/rules-semgrep.zip -d /tmp
+
+RUN mv /tmp/rules-semgrep-$(echo $VERSION_RULES_SEMGREP | cut -d "v" -f2)/* /opt/rules-semgrep/
+# END
+
 COPY --from=jlink /jlinked /opt/jdk/
 
 ENV JAVA_HOME=/opt/jdk
