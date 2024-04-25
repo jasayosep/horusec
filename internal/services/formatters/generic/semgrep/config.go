@@ -16,5 +16,5 @@ package semgrep
 
 const CMD = `
 	    {{WORK_DIR}}
-		semgrep --disable-metrics --config="/opt/rules-semgrep/" -q --json .
+                semgrep scan --metrics=off --config="/opt/rules-semgrep/" -q --json .
   `
