@@ -21,6 +21,8 @@ RUN "$JAVA_HOME/bin/jlink" --compress=2 \
 
 FROM python:3.10.4-alpine3.14
 
+RUN apk update && apk add curl
+
 RUN apk add build-base
 
 RUN pip install semgrep==v0.85.0
@@ -41,8 +43,6 @@ RUN mv /tmp/rules-semgrep-$(echo $VERSION_RULES_SEMGREP | cut -d "v" -f2)/* /opt
 COPY --from=jlink /jlinked /opt/jdk/
 
 ENV JAVA_HOME=/opt/jdk
-
-RUN apk update && apk add curl
 
 # TODO: upgrade owasp dependency check to 7.x version
 RUN curl -o /bin/dependency-check-6.5.3-release.zip -LO https://github.com/jeremylong/DependencyCheck/releases/download/v6.5.3/dependency-check-6.5.3-release.zip
