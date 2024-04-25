@@ -31,7 +31,7 @@ RUN pip install semgrep==v0.85.0
 # START
 RUN mkdir /opt/rules-semgrep
 
-RUN VERSION_RULES_SEMGREP="v1.0-test"
+ENV VERSION_RULES_SEMGREP="v1.0-test"
 
 RUN curl -o /tmp/rules-semgrep.zip -LO "https://github.com/jasayosep/rules-semgrep/archive/refs/tags/$VERSION_RULES_SEMGREP.zip"
 
@@ -47,7 +47,7 @@ ENV JAVA_HOME=/opt/jdk
 # TODO: upgrade owasp dependency check to 7.x version
 RUN curl -o /bin/dependency-check-6.5.3-release.zip -LO https://github.com/jeremylong/DependencyCheck/releases/download/v6.5.3/dependency-check-6.5.3-release.zip
 
-RUN unzip /bin/dependency-check-6.5.3-release.zip -d  /bin
+RUN unzip /bin/dependency-check-6.5.3-release.zip -d /bin
 
 RUN rm /bin/dependency-check-6.5.3-release.zip
 
