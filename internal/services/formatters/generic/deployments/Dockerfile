@@ -21,23 +21,17 @@ RUN "$JAVA_HOME/bin/jlink" --compress=2 \
 
 FROM python:3.10.4-alpine3.14
 
-RUN apk update && apk add curl
+RUN apk update && apk add curl && apk add git
 
 RUN apk add build-base
 
-RUN pip install semgrep==v0.85.0
+RUN pip install semgrep
 
 # Create Folder for Rules semgrep
 # START
-RUN mkdir /opt/rules-semgrep
+RUN rm -rf /opt/rules-semgrep
 
-ENV VERSION_RULES_SEMGREP="v1.0-test"
-
-RUN curl -o /tmp/rules-semgrep.zip -LO "https://github.com/jasayosep/rules-semgrep/archive/refs/tags/$VERSION_RULES_SEMGREP.zip"
-
-RUN unzip /tmp/rules-semgrep.zip -d /tmp
-
-RUN mv /tmp/rules-semgrep-$(echo $VERSION_RULES_SEMGREP | cut -d "v" -f2)/* /opt/rules-semgrep/
+RUN git clone https://github.com/jasayosep/rules-semgrep.git /opt/rules-semgrep
 # END
 
 COPY --from=jlink /jlinked /opt/jdk/
@@ -45,10 +39,12 @@ COPY --from=jlink /jlinked /opt/jdk/
 ENV JAVA_HOME=/opt/jdk
 
 # TODO: upgrade owasp dependency check to 7.x version
-RUN curl -o /bin/dependency-check-6.5.3-release.zip -LO https://github.com/jeremylong/DependencyCheck/releases/download/v6.5.3/dependency-check-6.5.3-release.zip
+ENV VERSION_DEPENDENCY_CHECK=9.1.0
 
-RUN unzip /bin/dependency-check-6.5.3-release.zip -d /bin
+RUN curl -o /bin/dependency-check-release.zip -LO https://github.com/jeremylong/DependencyCheck/releases/download/v$VERSION_DEPENDENCY_CHECK/dependency-check-$VERSION_DEPENDENCY_CHECK-release.zip
 
-RUN rm /bin/dependency-check-6.5.3-release.zip
+RUN unzip /bin/dependency-check-release.zip -d /bin
+
+RUN rm /bin/dependency-check-release.zip
 
 RUN curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.24.4
