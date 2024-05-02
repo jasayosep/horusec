@@ -16,8 +16,14 @@ package trivy
 
 const CmdFs = `
 		{{WORK_DIR}}
-		TRIVY_NEW_JSON_SCHEMA=true trivy filesystem -f json -o resultFs.json ./ &> /dev/null
+		TRIVY_NEW_JSON_SCHEMA=true trivy fs --skip-db-update --skip-java-db-update -f json -o resultFs.json ./ &> /dev/null
 		cat resultFs.json
+  `
+
+const CmdRootFs = `
+                {{WORK_DIR}}
+                TRIVY_NEW_JSON_SCHEMA=true trivy rootfs --skip-db-update --skip-java-db-update -f json -o resultRootFs.json ./ &> /dev/null
+                cat resultRootFs.json
   `
 
 const CmdConfig = `
