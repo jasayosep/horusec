@@ -38,13 +38,19 @@ COPY --from=jlink /jlinked /opt/jdk/
 
 ENV JAVA_HOME=/opt/jdk
 
-# TODO: upgrade owasp dependency check to 7.x version
+# Install Dependency Check OWASP
 ENV VERSION_DEPENDENCY_CHECK=9.1.0
-
 RUN curl -o /bin/dependency-check-release.zip -LO https://github.com/jeremylong/DependencyCheck/releases/download/v$VERSION_DEPENDENCY_CHECK/dependency-check-$VERSION_DEPENDENCY_CHECK-release.zip
-
 RUN unzip /bin/dependency-check-release.zip -d /bin
-
 RUN rm /bin/dependency-check-release.zip
 
-RUN curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.24.4
+# Download Trivy Latest
+RUN curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin latest
+
+# Copy Database
+RUN mkdir -p $HOME/.cache/trivy/db
+RUN trivy image --download-db-only
+
+#Copy Database JAVA
+RUN mkdir -p $HOME/.cache/trivy/java-db
+RUN trivy image --download-java-db-only
