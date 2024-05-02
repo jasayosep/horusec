@@ -42,6 +42,7 @@ import (
 type trivyResult struct {
 	config string // Result of misconfigurations files.
 	fs     string // Result of filesystem vulnerabilities and misconfigurations.
+	rootfs string // Result of RootFS vulnerabilities
 	err    error  // Error if exists.
 }
 
@@ -69,20 +70,21 @@ func (f *Formatter) StartAnalysis(projectSubPath string) {
 func (f *Formatter) startTrivy(projectSubPath string) (string, error) {
 	f.LogDebugWithReplace(messages.MsgDebugToolStartAnalysis, tools.Trivy, languages.Generic)
 
-	configOutput, fileSystemOutput, err := f.executeContainers(projectSubPath)
+	configOutput, fileSystemOutput, rootFsOutput, err := f.executeContainers(projectSubPath)
 	if err != nil {
 		return "", err
 	}
 
-	return f.parse(projectSubPath, configOutput, fileSystemOutput)
+	return f.parse(projectSubPath, configOutput, fileSystemOutput, rootFsOutput)
 }
 
 // nolint:funlen
-func (f *Formatter) executeContainers(projectSubPath string) (string, string, error) {
+func (f *Formatter) executeContainers(projectSubPath string) (string, string, string, error) {
 	var (
 		result     trivyResult
 		configDone = make(chan bool)
 		fsDone     = make(chan bool)
+		rootfsDone = make(chan bool)
 		mutex      = new(sync.Mutex)
 	)
 
@@ -110,15 +112,28 @@ func (f *Formatter) executeContainers(projectSubPath string) (string, string, er
 		fsDone <- true
 	}()
 
+        // Scan RootFilesystem for Vulnerabilities and Misconfigurations
+        go func() {
+                rootfs, err := f.ExecuteContainer(f.getDockerConfig(CmdRootFs, projectSubPath))
+                if err != nil {
+                        mutex.Lock()
+                        result.err = fmt.Errorf("trivy rootfilesystem cmd: %w", err)
+                        mutex.Unlock()
+                }
+                result.rootfs = rootfs
+                rootfsDone <- true
+        }()
+
 	// Wait for go routines to finish
 	<-configDone
 	<-fsDone
+	<-rootfsDone
 
-	return result.config, result.fs, result.err
+	return result.config, result.fs, result.rootfs, result.err
 }
 
-func (f *Formatter) parse(projectSubPath, configOutput, fileSystemOutput string) (string, error) {
-	completeOutput := fmt.Sprintf("ConfigOutput: %s. FileSystemOutput: %s", configOutput, fileSystemOutput)
+func (f *Formatter) parse(projectSubPath, configOutput, fileSystemOutput, rootFsOutput string) (string, error) {
+	completeOutput := fmt.Sprintf("ConfigOutput: %s. FileSystemOutput: %s. RootFS: %s", configOutput, fileSystemOutput, rootFsOutput)
 	if err := f.parseOutput(configOutput, projectSubPath); err != nil {
 		return completeOutput, err
 	}
@@ -126,6 +141,10 @@ func (f *Formatter) parse(projectSubPath, configOutput, fileSystemOutput string)
 	if err := f.parseOutput(fileSystemOutput, projectSubPath); err != nil {
 		return completeOutput, err
 	}
+
+        if err := f.parseOutput(rootFsOutput, projectSubPath); err != nil {
+                return completeOutput, err
+        }
 
 	return completeOutput, nil
 }
@@ -148,12 +167,31 @@ func (f *Formatter) parseOutput(output, projectSubPath string) error {
 		return err
 	}
 	for _, result := range report.Results {
-		f.addVulnerabilitiesOutput(result.Vulnerabilities, filepath.Join(projectSubPath, result.Target), projectSubPath)
+		if result.Type == "jar" {
+	        f.addVulnerabilitiesJarOutput(result.Vulnerabilities)
+		} else {
+			f.addVulnerabilitiesOutput(result.Vulnerabilities, filepath.Join(projectSubPath, result.Target), projectSubPath)
+		}
 		if result.Misconfigurations != nil {
 			f.addMisconfigurationOutput(result.Misconfigurations, filepath.Join(projectSubPath, result.Target))
 		}
 	}
 	return nil
+}
+
+// addVulnerabilitiesJarOutput
+func (f *Formatter) addVulnerabilitiesJarOutput(vulnerabilities []*trivyVulnerability) {
+	for _, vuln := range vulnerabilities {
+		addVuln := f.getVulnBase()
+		addVuln.RuleID = vuln.VulnerabilityID
+		addVuln.Code = vuln.Title
+		addVuln.File = vuln.PkgPath
+		addVuln.Details = vuln.getDetails()
+		addVuln.Severity = severities.GetSeverityByString(vuln.Severity)
+		addVuln.DeprecatedHashes = f.getDeprecatedHashes(vuln.PkgName, *addVuln)
+		addVuln = vulnhash.Bind(addVuln)
+		f.AddNewVulnerabilityIntoAnalysis(f.SetCommitAuthor(addVuln))
+	}
 }
 
 // nolint: funlen // needs to be bigger
