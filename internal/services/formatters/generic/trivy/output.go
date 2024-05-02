@@ -52,6 +52,7 @@ type trivyMisconfiguration struct {
 type trivyVulnerability struct {
 	VulnerabilityID  string   `json:"vulnerabilityID"`
 	PkgName          string   `json:"pkgName"`
+	PkgPath          string   `json:"pkgPath"`
 	InstalledVersion string   `json:"installedVersion"`
 	FixedVersion     string   `json:"fixedVersion"`
 	SeveritySource   string   `json:"severitySource"`
